@@ -2,8 +2,8 @@ import { execFileSync, spawnSync } from 'child_process'
 import { existsSync, mkdirSync, statSync } from 'fs'
 import * as path from 'path'
 
-const SWIFT_SOURCE_FILENAME = 'bio_auth.swift'
-const COMPILED_BINARY_FILENAME = 'bio_auth'
+const SWIFT_SOURCE_FILENAME = 'proton-cli-signer.swift'
+const COMPILED_BINARY_FILENAME = 'proton-cli-signer'
 
 let cachedBinaryPath: string | null = null
 

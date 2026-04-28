@@ -6,4 +6,4 @@
 /tmp
 node_modules
 tsconfig.tsbuildinfo
-src/native/bio_auth
+src/native/proton-cli-signer

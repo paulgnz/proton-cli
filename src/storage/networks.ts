@@ -11,6 +11,7 @@ import {networks} from '../constants'
 import {config} from './config'
 import passwordManager from './passwordManager'
 import {ApiClass} from '@proton/api'
+import { buildSignatureProvider } from './signatureProvider'
 
 type Endpoints = {
   chain: string;
@@ -49,9 +50,8 @@ class Network {
     this.protonApi = new ApiClass(this.chain)
   }
 
-  async getSignatureProvider() {
-    const privateKeys = await passwordManager.getPrivateKeys()
-    return new JsSignatureProvider(privateKeys)
+  async getSignatureProvider(): Promise<ApiInterfaces.SignatureProvider> {
+    return buildSignatureProvider()
   }
 
   async transact(
