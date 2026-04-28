@@ -6,3 +6,4 @@
 /tmp
 node_modules
 tsconfig.tsbuildinfo
+src/native/proton-cli-signer

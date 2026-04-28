@@ -54,6 +54,7 @@ export const config = new Conf<{
   currentChain: string;
   endpoints?: { chain: string; endpoints: string[] }[];
   revealPasswordHash?: RevealPasswordHash;
+  keychainPublicKeys?: string[];
 }>({
   schema,
   configName: "proton-cli",

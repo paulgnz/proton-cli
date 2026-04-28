@@ -3,6 +3,8 @@ import { CliUx } from '@oclif/core'
 import { config } from './config'
 import { encryptor } from './encryptor'
 import { green } from 'colors'
+import { getKey as getKeychainKey, isKeychainSupported } from './keychain'
+import { authenticate as touchIdAuthenticate, isTouchIdAvailable } from './touchId'
 
 class PasswordManager {
     password: string = ""
@@ -53,8 +55,25 @@ class PasswordManager {
     }
 
     async getPrivateKey (publicKey: string): Promise<string | undefined> {
+        const canonicalPublicKey = Key.PublicKey.fromString(publicKey).toString()
+
+        // Try the keychain first if enabled
+        if (isKeychainSupported()) {
+            const index = (config.get('keychainPublicKeys') ?? []) as string[]
+            if (index.some(p => Key.PublicKey.fromString(p).toString() === canonicalPublicKey)) {
+                if (isTouchIdAvailable()) {
+                    const ok = touchIdAuthenticate(`Authorize Proton CLI to use ${canonicalPublicKey.slice(0, 24)}…`)
+                    if (!ok) {
+                        throw new Error('Touch ID authentication failed or was cancelled.')
+                    }
+                }
+                const fromKeychain = getKeychainKey(canonicalPublicKey) || getKeychainKey(publicKey)
+                if (fromKeychain) return fromKeychain
+            }
+        }
+
         const privateKeys = await this.getPrivateKeys()
-        const privateKey = privateKeys.find(_ => Key.PrivateKey.fromString(_).getPublicKey().toString() === Key.PublicKey.fromString(publicKey).toString())
+        const privateKey = privateKeys.find(_ => Key.PrivateKey.fromString(_).getPublicKey().toString() === canonicalPublicKey)
         return privateKey
     }
 
