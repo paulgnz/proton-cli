@@ -5,6 +5,8 @@ import { red, yellow } from 'colors'
 import passwordManager from '../../storage/passwordManager'
 import { network } from '../../storage/networks'
 import { isRevealPasswordSet, requireRevealPassword } from '../../storage/revealPassword'
+import { config } from '../../storage/config'
+import { getKey as getKeychainKey, isKeychainSupported } from '../../storage/keychain'
 
 const CONFIRMATION_PHRASE = 'I UNDERSTAND'
 
@@ -24,12 +26,15 @@ export default class ListAllKeys extends Command {
     const revealPrivate = parsedFlags['reveal-private']
 
     const privateKeys = await passwordManager.getPrivateKeys()
-    if (privateKeys.length === 0) {
+    const configPublicKeys = privateKeys.map(pk => Key.PrivateKey.fromString(pk).getPublicKey().toString())
+    const keychainPublicKeys: string[] = (isKeychainSupported() ? (config.get('keychainPublicKeys') ?? []) : []) as string[]
+
+    if (configPublicKeys.length === 0 && keychainPublicKeys.length === 0) {
       CliUx.ux.log('No keys saved.')
       return
     }
 
-    const publicKeys = privateKeys.map(pk => Key.PrivateKey.fromString(pk).getPublicKey().toString())
+    const publicKeys = [...configPublicKeys, ...keychainPublicKeys]
 
     let accountsByPubkey: Record<string, Array<{ account: string; permission: string }>> = {}
     try {
@@ -46,14 +51,20 @@ export default class ListAllKeys extends Command {
     }
 
     if (!revealPrivate) {
-      const display = privateKeys.map(pk => {
+      const fromConfig = privateKeys.map(pk => {
         const publicKey = Key.PrivateKey.fromString(pk).getPublicKey().toString()
         return {
           publicKey,
+          storage: 'config' as const,
           accounts: accountsByPubkey[publicKey] || [],
         }
       })
-      CliUx.ux.styledJSON(display)
+      const fromKeychain = keychainPublicKeys.map(publicKey => ({
+        publicKey,
+        storage: 'keychain' as const,
+        accounts: accountsByPubkey[publicKey] || [],
+      }))
+      CliUx.ux.styledJSON([...fromConfig, ...fromKeychain])
       CliUx.ux.log(yellow('\nPrivate keys hidden. Use --reveal-private to include them.'))
       return
     }
@@ -74,15 +85,25 @@ export default class ListAllKeys extends Command {
       }
     }
 
-    const display = privateKeys.map(pk => {
+    const fromConfig = privateKeys.map(pk => {
       const parsed = Key.PrivateKey.fromString(pk)
       const publicKey = parsed.getPublicKey().toString()
       return {
         publicKey,
+        storage: 'config' as const,
         privateKey: parsed.toString(),
         accounts: accountsByPubkey[publicKey] || [],
       }
     })
-    CliUx.ux.styledJSON(display)
+    const fromKeychain = keychainPublicKeys.map(publicKey => {
+      const privateKey = getKeychainKey(publicKey)
+      return {
+        publicKey,
+        storage: 'keychain' as const,
+        privateKey: privateKey ?? '<unable to read from Keychain>',
+        accounts: accountsByPubkey[publicKey] || [],
+      }
+    })
+    CliUx.ux.styledJSON([...fromConfig, ...fromKeychain])
   }
 }
